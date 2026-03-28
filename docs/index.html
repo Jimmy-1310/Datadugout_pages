@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DataDugout - LMB Stats 2025</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="index.html" class="site-logo">Data<span class="accent">Dugout</span></a>
+      <nav>
+        <a href="index.html">Leaders</a>
+        <a href="teams.html">Teams</a>
+        <a href="players.html">Players</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <h1 class="page-title">2025 LMB League Leaders</h1>
+    <p class="page-subtitle">Liga Mexicana de Beisbol &middot; Regular Season &middot; Min. 36 PA for rate stats</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="standard">Standard</button>
+      <button class="tab-btn" data-tab="advanced">Advanced</button>
+      <button class="tab-btn" data-tab="counting">Counting</button>
+    </div>
+
+    <div id="tab-standard" class="tab-content">
+      <div class="leaders-grid" id="leaders-standard"></div>
+    </div>
+    <div id="tab-advanced" class="tab-content" style="display:none">
+      <div class="leaders-grid" id="leaders-advanced"></div>
+    </div>
+    <div id="tab-counting" class="tab-content" style="display:none">
+      <div class="leaders-grid" id="leaders-counting"></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>DataDugout &middot; LMB 2025 Season Statistics</p>
+    <p>Data sourced from MLB Stats API &middot; Play-by-play analysis</p>
+  </footer>
+
+  <script src="js/shared.js"></script>
+  <script>
+    const STANDARD_CATS = ['BA', 'OBP', 'SLG', 'OPS', 'HR', 'RBI'];
+    const ADVANCED_CATS = ['wOBA', 'ISO', 'BABIP', 'BB%', 'K%', 'RAA'];
+    const COUNTING_CATS = ['H', '2B', '3B', 'HR', 'BB', 'RBI'];
+
+    function renderLeaderCard(cat, data) {
+      const d = data[cat];
+      if (!d) return '';
+      let html = `<div class="leader-card">
+        <div class="leader-card-header">${d.label}</div>
+        <ol class="leader-list">`;
+      for (let i = 0; i < d.players.length; i++) {
+        const p = d.players[i];
+        const rankClass = i < 3 ? ` rank-${i + 1}` : '';
+        const val = fmtStat(p.value, d.format);
+        html += `<li>
+          <span class="leader-rank${rankClass}">${i + 1}</span>
+          <span class="leader-name"><a href="player.html?id=${p.id}">${p.name}</a></span>
+          <span class="leader-team">${p.teamAbbr}</span>
+          <span class="leader-value">${val}</span>
+        </li>`;
+      }
+      html += '</ol></div>';
+      return html;
+    }
+
+    async function init() {
+      const leaders = await loadJSON('leaders.json');
+
+      document.getElementById('leaders-standard').innerHTML =
+        STANDARD_CATS.map(c => renderLeaderCard(c, leaders)).join('');
+      document.getElementById('leaders-advanced').innerHTML =
+        ADVANCED_CATS.map(c => renderLeaderCard(c, leaders)).join('');
+      document.getElementById('leaders-counting').innerHTML =
+        COUNTING_CATS.map(c => renderLeaderCard(c, leaders)).join('');
+
+      // Tab switching
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+          btn.classList.add('active');
+          document.getElementById('tab-' + btn.dataset.tab).style.display = '';
+        });
+      });
+    }
+    init();
+  </script>
+</body>
+</html>

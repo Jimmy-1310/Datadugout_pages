@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Player Search - DataDugout</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="index.html" class="site-logo">Data<span class="accent">Dugout</span></a>
+      <nav>
+        <a href="index.html">Leaders</a>
+        <a href="teams.html">Teams</a>
+        <a href="players.html">Players</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <h1 class="page-title">Player Statistics</h1>
+    <p class="page-subtitle">Search and browse all 2025 LMB batters &middot; Click column headers to sort</p>
+
+    <div class="search-bar">
+      <input type="text" id="search-input" class="search-input" placeholder="Search players by name...">
+      <select id="team-filter" class="filter-select">
+        <option value="">All Teams</option>
+      </select>
+      <select id="qualified-filter" class="filter-select">
+        <option value="all">All Players</option>
+        <option value="qualified" selected>Qualified (36+ PA)</option>
+        <option value="unqualified">Under 36 PA</option>
+      </select>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="standard">Standard</button>
+      <button class="tab-btn" data-tab="advanced">Advanced</button>
+    </div>
+
+    <div id="tab-standard" class="tab-content">
+      <div id="players-table-standard" class="loading">Loading players...</div>
+    </div>
+    <div id="tab-advanced" class="tab-content" style="display:none">
+      <div id="players-table-advanced" class="loading">Loading players...</div>
+    </div>
+
+    <div style="text-align:center; padding:1rem; color:var(--text-muted); font-size:0.8rem;" id="result-count"></div>
+  </main>
+
+  <footer class="site-footer">
+    <p>DataDugout &middot; LMB 2025 Season Statistics</p>
+    <p>Data sourced from MLB Stats API &middot; Play-by-play analysis</p>
+  </footer>
+
+  <script src="js/shared.js"></script>
+  <script>
+    let allPlayers = [];
+    let teamList = [];
+
+    function getFilteredPlayers() {
+      const search = document.getElementById('search-input').value.toLowerCase().trim();
+      const teamFilter = document.getElementById('team-filter').value;
+      const qualFilter = document.getElementById('qualified-filter').value;
+
+      return allPlayers.filter(p => {
+        if (search && !p.name.toLowerCase().includes(search)) return false;
+        if (teamFilter && p.team !== teamFilter) return false;
+        if (qualFilter === 'qualified' && p.PA < 36) return false;
+        if (qualFilter === 'unqualified' && p.PA >= 36) return false;
+        return true;
+      });
+    }
+
+    function updateTables() {
+      const filtered = getFilteredPlayers();
+      document.getElementById('result-count').textContent = `Showing ${filtered.length} players`;
+      renderStatTable('players-table-standard', filtered, BATTING_COLS, { showRank: true, showTeam: true });
+      renderStatTable('players-table-advanced', filtered, ADVANCED_COLS, { showRank: true, showTeam: true });
+    }
+
+    async function init() {
+      [allPlayers, teamList] = await Promise.all([
+        loadJSON('players.json'),
+        loadJSON('team_list.json')
+      ]);
+
+      // Populate team filter
+      const teamSelect = document.getElementById('team-filter');
+      for (const t of teamList) {
+        const opt = document.createElement('option');
+        opt.value = t.name;
+        opt.textContent = t.name;
+        teamSelect.appendChild(opt);
+      }
+
+      // Initial render
+      updateTables();
+
+      // Event listeners
+      document.getElementById('search-input').addEventListener('input', updateTables);
+      document.getElementById('team-filter').addEventListener('change', updateTables);
+      document.getElementById('qualified-filter').addEventListener('change', updateTables);
+
+      // Tab switching
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+          btn.classList.add('active');
+          document.getElementById('tab-' + btn.dataset.tab).style.display = '';
+        });
+      });
+    }
+    init();
+  </script>
+</body>
+</html>
