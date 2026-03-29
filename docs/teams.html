@@ -15,28 +15,41 @@
       <nav>
         <a href="index.html">Leaders</a>
         <a href="teams.html">Teams</a>
-        <a href="players.html">Players</a>
+        <a href="players.html">Batters</a>
+        <a href="pitchers.html">Pitchers</a>
       </nav>
     </div>
   </header>
 
   <main class="container">
-    <h1 class="page-title">Team Batting Statistics</h1>
-    <p class="page-subtitle">2025 LMB Regular Season &middot; Aggregate team batting</p>
+    <h1 class="page-title">Team Statistics</h1>
+    <p class="page-subtitle">2025 LMB Regular Season &middot; Aggregate team batting &amp; pitching</p>
 
     <div class="tabs">
-      <button class="tab-btn active" data-tab="standard">Standard</button>
-      <button class="tab-btn" data-tab="advanced">Advanced</button>
+      <button class="tab-btn active" data-tab="bat-standard">Batting &mdash; Standard</button>
+      <button class="tab-btn" data-tab="bat-advanced">Batting &mdash; Advanced</button>
+      <button class="tab-btn" data-tab="pit-standard">Pitching &mdash; Standard</button>
+      <button class="tab-btn" data-tab="pit-advanced">Pitching &mdash; Advanced</button>
     </div>
 
-    <div id="tab-standard" class="tab-content">
+    <div id="tab-bat-standard" class="tab-content">
       <div class="card">
-        <div id="team-table-standard" class="loading">Loading team stats...</div>
+        <div id="team-bat-standard" class="loading">Loading team stats...</div>
       </div>
     </div>
-    <div id="tab-advanced" class="tab-content" style="display:none">
+    <div id="tab-bat-advanced" class="tab-content" style="display:none">
       <div class="card">
-        <div id="team-table-advanced" class="loading">Loading team stats...</div>
+        <div id="team-bat-advanced" class="loading">Loading team stats...</div>
+      </div>
+    </div>
+    <div id="tab-pit-standard" class="tab-content" style="display:none">
+      <div class="card">
+        <div id="team-pit-standard" class="loading">Loading team stats...</div>
+      </div>
+    </div>
+    <div id="tab-pit-advanced" class="tab-content" style="display:none">
+      <div class="card">
+        <div id="team-pit-advanced" class="loading">Loading team stats...</div>
       </div>
     </div>
   </main>
@@ -48,58 +61,102 @@
 
   <script src="js/shared.js"></script>
   <script>
-    const TEAM_STD_COLS = [
-      { key: 'G', label: 'G', fmt: fmtInt },
-      { key: 'R', label: 'R', fmt: fmtInt },
-      { key: 'PA', label: 'PA', fmt: fmtInt },
-      { key: 'AB', label: 'AB', fmt: fmtInt },
-      { key: 'H', label: 'H', fmt: fmtInt },
-      { key: '2B', label: '2B', fmt: fmtInt },
-      { key: '3B', label: '3B', fmt: fmtInt },
-      { key: 'HR', label: 'HR', fmt: fmtInt },
+    // ── Batting column definitions ──
+    const TEAM_BAT_STD = [
+      { key: 'G',   label: 'G',   fmt: fmtInt },
+      { key: 'PA',  label: 'PA',  fmt: fmtInt },
+      { key: 'AB',  label: 'AB',  fmt: fmtInt },
+      { key: 'R',   label: 'R',   fmt: fmtInt },
+      { key: 'H',   label: 'H',   fmt: fmtInt },
+      { key: '2B',  label: '2B',  fmt: fmtInt },
+      { key: '3B',  label: '3B',  fmt: fmtInt },
+      { key: 'HR',  label: 'HR',  fmt: fmtInt },
       { key: 'RBI', label: 'RBI', fmt: fmtInt },
-      { key: 'BB', label: 'BB', fmt: fmtInt },
-      { key: 'SO', label: 'SO', fmt: fmtInt },
-      { key: 'BA', label: 'BA', fmt: fmtAvg },
+      { key: 'BB',  label: 'BB',  fmt: fmtInt },
+      { key: 'SO',  label: 'SO',  fmt: fmtInt },
+      { key: 'BA',  label: 'BA',  fmt: fmtAvg },
       { key: 'OBP', label: 'OBP', fmt: fmtAvg },
       { key: 'SLG', label: 'SLG', fmt: fmtAvg },
-      { key: 'OPS', label: 'OPS', fmt: fmtAvg },
+      { key: 'OPS', label: 'OPS', fmt: fmtAvg, colorKey: 'OPS' },
     ];
 
-    const TEAM_ADV_COLS = [
-      { key: 'G', label: 'G', fmt: fmtInt },
-      { key: 'PA', label: 'PA', fmt: fmtInt },
-      { key: 'wOBA', label: 'wOBA', fmt: fmtAvg },
-      { key: 'ISO', label: 'ISO', fmt: fmtAvg },
+    const TEAM_BAT_ADV = [
+      { key: 'G',     label: 'G',     fmt: fmtInt },
+      { key: 'PA',    label: 'PA',    fmt: fmtInt },
+      { key: 'wOBA',  label: 'wOBA',  fmt: fmtAvg, colorKey: 'wOBA' },
+      { key: 'ISO',   label: 'ISO',   fmt: fmtAvg },
       { key: 'BABIP', label: 'BABIP', fmt: fmtAvg },
-      { key: 'BB%', label: 'BB%', fmt: fmtPct },
-      { key: 'K%', label: 'K%', fmt: fmtPct },
-      { key: 'P/PA', label: 'P/PA', fmt: (v) => v != null ? parseFloat(v).toFixed(2) : '-' },
-      { key: 'RAA', label: 'RAA', fmt: fmtDec1 },
+      { key: 'BB%',   label: 'BB%',   fmt: fmtPct },
+      { key: 'K%',    label: 'K%',    fmt: fmtPct },
+      { key: 'P/PA',  label: 'P/PA',  fmt: fmtDec2 },
+      { key: 'RAA',   label: 'RAA',   fmt: fmtDec1 },
+      { key: 'PF100', label: 'PF',    fmt: fmtInt,
+        title: 'Park Factor (100 = neutral)' },
     ];
 
-    function renderTeamTable(containerId, data, cols) {
-      const container = document.getElementById(containerId);
-      let sortCol = null;
-      let sortDir = 'desc';
+    // ── Pitching column definitions ──
+    const TEAM_PIT_STD = [
+      { key: 'G',    label: 'G',    fmt: fmtInt },
+      { key: 'IP',   label: 'IP',   fmt: fmtIP  },
+      { key: 'BF',   label: 'BF',   fmt: fmtInt },
+      { key: 'H',    label: 'H',    fmt: fmtInt },
+      { key: 'HR',   label: 'HR',   fmt: fmtInt },
+      { key: 'BB',   label: 'BB',   fmt: fmtInt },
+      { key: 'HBP',  label: 'HBP',  fmt: fmtInt },
+      { key: 'K',    label: 'K',    fmt: fmtInt },
+      { key: 'R',    label: 'R',    fmt: fmtInt },
+      { key: 'ERA',  label: 'ERA',  fmt: fmtDec2, colorKey: 'ERA'  },
+      { key: 'WHIP', label: 'WHIP', fmt: fmtDec2, colorKey: 'WHIP' },
+      { key: 'BAA',  label: 'BAA',  fmt: fmtAvg  },
+    ];
 
-      function render(sorted) {
+    const TEAM_PIT_ADV = [
+      { key: 'G',    label: 'G',    fmt: fmtInt },
+      { key: 'IP',   label: 'IP',   fmt: fmtIP  },
+      { key: 'FIP',  label: 'FIP',  fmt: fmtDec2, colorKey: 'FIP' },
+      { key: 'K/9',  label: 'K/9',  fmt: fmtDec2 },
+      { key: 'BB/9', label: 'BB/9', fmt: fmtDec2 },
+      { key: 'HR/9', label: 'HR/9', fmt: fmtDec2 },
+      { key: 'K/BB', label: 'K/BB', fmt: fmtDec2 },
+      { key: 'K%',   label: 'K%',   fmt: fmtPct  },
+      { key: 'BB%',  label: 'BB%',  fmt: fmtPct  },
+    ];
+
+    function renderTeamTable(containerId, data, cols, sortDefault, sortDir = 'desc') {
+      const container = document.getElementById(containerId);
+      let currentSort = sortDefault;
+      let currentDir  = sortDir;
+
+      function sorted(arr) {
+        return [...arr].sort((a, b) => {
+          const va = parseFloat(a[currentSort]) || 0;
+          const vb = parseFloat(b[currentSort]) || 0;
+          return currentDir === 'desc' ? vb - va : va - vb;
+        });
+      }
+
+      function render(arr) {
         let html = '<div class="table-wrapper"><table class="stat-table"><thead><tr>';
         html += '<th class="col-rank">#</th>';
         html += '<th class="col-name">Team</th>';
         for (const col of cols) {
-          const cls = sortCol === col.key ? (sortDir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
-          html += `<th data-col="${col.key}" class="${cls}">${col.label}</th>`;
+          const cls = currentSort === col.key
+            ? (currentDir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+          const title = col.title ? ` title="${col.title}"` : '';
+          html += `<th data-col="${col.key}" class="${cls}"${title}>${col.label}</th>`;
         }
         html += '</tr></thead><tbody>';
 
-        for (let i = 0; i < sorted.length; i++) {
-          const t = sorted[i];
-          html += `<tr>`;
-          html += `<td class="col-rank">${i + 1}</td>`;
-          html += `<td class="col-name">${t.name}</td>`;
+        const s = sorted(arr);
+        for (let i = 0; i < s.length; i++) {
+          const t = s[i];
+          html += `<tr>
+            <td class="col-rank">${i + 1}</td>
+            <td class="col-name">${t.name}</td>`;
           for (const col of cols) {
-            html += `<td>${col.fmt(t[col.key])}</td>`;
+            const val = t[col.key];
+            const colorCls = col.colorKey ? getStatColorClass(col.colorKey, val) : '';
+            html += `<td class="${colorCls}">${col.fmt(val)}</td>`;
           }
           html += '</tr>';
         }
@@ -109,14 +166,9 @@
         container.querySelectorAll('th[data-col]').forEach(th => {
           th.addEventListener('click', () => {
             const col = th.dataset.col;
-            if (sortCol === col) sortDir = sortDir === 'desc' ? 'asc' : 'desc';
-            else { sortCol = col; sortDir = 'desc'; }
-            const s = [...sorted].sort((a, b) => {
-              const va = parseFloat(a[col]) || 0;
-              const vb = parseFloat(b[col]) || 0;
-              return sortDir === 'desc' ? vb - va : va - vb;
-            });
-            render(s);
+            if (currentSort === col) currentDir = currentDir === 'desc' ? 'asc' : 'desc';
+            else { currentSort = col; currentDir = 'desc'; }
+            render(arr);
           });
         });
       }
@@ -125,9 +177,15 @@
     }
 
     async function init() {
-      const teams = await loadJSON('teams.json');
-      renderTeamTable('team-table-standard', teams, TEAM_STD_COLS);
-      renderTeamTable('team-table-advanced', teams, TEAM_ADV_COLS);
+      const [teams, teamPitching] = await Promise.all([
+        loadJSON('teams.json'),
+        loadJSON('team_pitching.json'),
+      ]);
+
+      renderTeamTable('team-bat-standard', teams, TEAM_BAT_STD, 'OPS', 'desc');
+      renderTeamTable('team-bat-advanced', teams, TEAM_BAT_ADV, 'wOBA', 'desc');
+      renderTeamTable('team-pit-standard', teamPitching, TEAM_PIT_STD, 'ERA', 'asc');
+      renderTeamTable('team-pit-advanced', teamPitching, TEAM_PIT_ADV, 'FIP', 'asc');
 
       document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {

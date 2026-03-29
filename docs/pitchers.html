@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pitcher Statistics - DataDugout</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="index.html" class="site-logo">Data<span class="accent">Dugout</span></a>
+      <nav>
+        <a href="index.html">Leaders</a>
+        <a href="teams.html">Teams</a>
+        <a href="players.html">Batters</a>
+        <a href="pitchers.html">Pitchers</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <h1 class="page-title">Pitcher Statistics</h1>
+    <p class="page-subtitle">2025 LMB Regular Season &middot; Click column headers to sort &middot; ERA/FIP are runs-based (R/9)</p>
+
+    <div class="search-bar">
+      <input type="text" id="search-input" class="search-input" placeholder="Search pitchers by name...">
+      <select id="team-filter" class="filter-select">
+        <option value="">All Teams</option>
+      </select>
+      <select id="hand-filter" class="filter-select">
+        <option value="">All Handedness</option>
+        <option value="R">RHP</option>
+        <option value="L">LHP</option>
+      </select>
+      <select id="role-filter" class="filter-select">
+        <option value="all">All Pitchers</option>
+        <option value="qualified" selected>Qualified (20+ IP)</option>
+        <option value="starters">Starters (1+ GS)</option>
+        <option value="relievers">Relievers (0 GS)</option>
+      </select>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="standard">Standard</button>
+      <button class="tab-btn" data-tab="advanced">Advanced</button>
+    </div>
+
+    <div id="tab-standard" class="tab-content">
+      <div id="pitchers-table-standard" class="loading">Loading pitchers...</div>
+    </div>
+    <div id="tab-advanced" class="tab-content" style="display:none">
+      <div id="pitchers-table-advanced" class="loading">Loading pitchers...</div>
+    </div>
+
+    <div style="text-align:center; padding:1rem; color:var(--text-muted); font-size:0.8rem;" id="result-count"></div>
+  </main>
+
+  <footer class="site-footer">
+    <p>DataDugout &middot; LMB 2025 Season Statistics</p>
+    <p>Data sourced from MLB Stats API &middot; Play-by-play analysis</p>
+  </footer>
+
+  <script src="js/shared.js"></script>
+  <script>
+    let allPitchers = [];
+    let teamList = [];
+    const MIN_IP_DEC = 20;
+
+    function ipToDec(ip) {
+      const n = parseFloat(ip) || 0;
+      const whole = Math.floor(n);
+      const frac = Math.round((n - whole) * 10); // 0, 1, or 2
+      return whole + frac / 3;
+    }
+
+    function getFilteredPitchers() {
+      const search  = document.getElementById('search-input').value.toLowerCase().trim();
+      const team    = document.getElementById('team-filter').value;
+      const hand    = document.getElementById('hand-filter').value;
+      const role    = document.getElementById('role-filter').value;
+
+      return allPitchers.filter(p => {
+        if (search && !p.name.toLowerCase().includes(search)) return false;
+        if (team && p.teamAbbr !== team) return false;
+        if (hand && p.pitch_hand !== hand) return false;
+        if (role === 'qualified' && ipToDec(p.IP) < MIN_IP_DEC) return false;
+        if (role === 'starters'  && (p.GS || 0) < 1) return false;
+        if (role === 'relievers' && (p.GS || 0) > 0) return false;
+        return true;
+      });
+    }
+
+    function updateTables() {
+      const filtered = getFilteredPitchers();
+      document.getElementById('result-count').textContent = `Showing ${filtered.length} pitchers`;
+      renderStatTable('pitchers-table-standard', filtered, PITCHING_STD_COLS, {
+        showRank: true, showTeam: true, linkBase: 'pitcher.html', colorStats: true
+      });
+      renderStatTable('pitchers-table-advanced', filtered, PITCHING_ADV_COLS, {
+        showRank: true, showTeam: true, linkBase: 'pitcher.html', colorStats: true
+      });
+    }
+
+    async function init() {
+      [allPitchers, teamList] = await Promise.all([
+        loadJSON('pitchers.json'),
+        loadJSON('team_list.json')
+      ]);
+
+      // Sort default by IP descending
+      allPitchers.sort((a, b) => (parseFloat(b.IP) || 0) - (parseFloat(a.IP) || 0));
+
+      const teamSelect = document.getElementById('team-filter');
+      for (const t of teamList) {
+        const opt = document.createElement('option');
+        opt.value = t.abbr;
+        opt.textContent = t.name;
+        teamSelect.appendChild(opt);
+      }
+
+      updateTables();
+
+      document.getElementById('search-input').addEventListener('input', updateTables);
+      document.getElementById('team-filter').addEventListener('change', updateTables);
+      document.getElementById('hand-filter').addEventListener('change', updateTables);
+      document.getElementById('role-filter').addEventListener('change', updateTables);
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+          btn.classList.add('active');
+          document.getElementById('tab-' + btn.dataset.tab).style.display = '';
+        });
+      });
+    }
+    init();
+  </script>
+</body>
+</html>

@@ -15,7 +15,8 @@
       <nav>
         <a href="index.html">Leaders</a>
         <a href="teams.html">Teams</a>
-        <a href="players.html">Players</a>
+        <a href="players.html">Batters</a>
+        <a href="pitchers.html">Pitchers</a>
       </nav>
     </div>
   </header>
@@ -137,15 +138,16 @@
 
       if (qualified) {
         const seasonAdvCols = [
-          { key: 'PA', label: 'PA', fmt: fmtInt },
-          { key: 'wOBA', label: 'wOBA', fmt: fmtAvg },
-          { key: 'ISO', label: 'ISO', fmt: fmtAvg },
+          { key: 'PA',    label: 'PA',    fmt: fmtInt },
+          { key: 'wRC+',  label: 'wRC+',  fmt: fmtWRCPlus, colorKey: 'wRC+' },
+          { key: 'wOBA',  label: 'wOBA',  fmt: fmtAvg,     colorKey: 'wOBA' },
+          { key: 'ISO',   label: 'ISO',   fmt: fmtAvg },
           { key: 'BABIP', label: 'BABIP', fmt: fmtAvg },
-          { key: 'BB%', label: 'BB%', fmt: fmtPct },
-          { key: 'K%', label: 'K%', fmt: fmtPct },
-          { key: 'P/PA', label: 'P/PA', fmt: (v) => v != null ? parseFloat(v).toFixed(2) : '-' },
-          { key: 'TB', label: 'TB', fmt: fmtInt },
-          { key: 'RAA', label: 'RAA', fmt: fmtDec1 },
+          { key: 'BB%',   label: 'BB%',   fmt: fmtPct },
+          { key: 'K%',    label: 'K%',    fmt: fmtPct },
+          { key: 'P/PA',  label: 'P/PA',  fmt: (v) => v != null ? parseFloat(v).toFixed(2) : '-' },
+          { key: 'TB',    label: 'TB',    fmt: fmtInt },
+          { key: 'RAA',   label: 'RAA',   fmt: fmtDec1 },
         ];
         renderSingleRowTable('season-advanced', player, seasonAdvCols);
       }
@@ -219,7 +221,9 @@
       }
       html += '</tr></thead><tbody><tr>';
       for (const col of cols) {
-        html += `<td>${col.fmt(data[col.key])}</td>`;
+        const val = data[col.key];
+        const colorCls = col.colorKey ? getStatColorClass(col.colorKey, val) : '';
+        html += `<td class="${colorCls}">${col.fmt(val)}</td>`;
       }
       html += '</tr></tbody></table></div>';
       container.innerHTML = html;

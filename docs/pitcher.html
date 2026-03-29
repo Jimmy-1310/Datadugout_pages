@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pitcher Profile - DataDugout</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="index.html" class="site-logo">Data<span class="accent">Dugout</span></a>
+      <nav>
+        <a href="index.html">Leaders</a>
+        <a href="teams.html">Teams</a>
+        <a href="players.html">Batters</a>
+        <a href="pitchers.html">Pitchers</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="pitcher-content" class="loading">Loading pitcher...</div>
+  </main>
+
+  <footer class="site-footer">
+    <p>DataDugout &middot; LMB 2025 Season Statistics</p>
+    <p>Data sourced from MLB Stats API &middot; Play-by-play analysis</p>
+  </footer>
+
+  <script src="js/shared.js"></script>
+  <script>
+    function ipToDec(ip) {
+      const n = parseFloat(ip) || 0;
+      const whole = Math.floor(n);
+      const frac = Math.round((n - whole) * 10);
+      return whole + frac / 3;
+    }
+
+    const SPLIT_PITCH_COLS = [
+      { key: 'BF',   label: 'BF',   fmt: fmtInt },
+      { key: 'IP',   label: 'IP',   fmt: fmtIP  },
+      { key: 'H',    label: 'H',    fmt: fmtInt },
+      { key: 'HR',   label: 'HR',   fmt: fmtInt },
+      { key: 'BB',   label: 'BB',   fmt: fmtInt },
+      { key: 'K',    label: 'K',    fmt: fmtInt },
+      { key: 'R',    label: 'R',    fmt: fmtInt },
+      { key: 'ERA',  label: 'ERA',  fmt: fmtDec2 },
+      { key: 'WHIP', label: 'WHIP', fmt: fmtDec2 },
+      { key: 'BAA',  label: 'BAA',  fmt: fmtAvg  },
+      { key: 'K/9',  label: 'K/9',  fmt: fmtDec2 },
+      { key: 'BB/9', label: 'BB/9', fmt: fmtDec2 },
+    ];
+
+    function renderSingleRowTable(containerId, data, cols) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      let html = '<div class="table-wrapper"><table class="stat-table"><thead><tr>';
+      for (const col of cols) html += `<th>${col.label}</th>`;
+      html += '</tr></thead><tbody><tr>';
+      for (const col of cols) {
+        const val = data[col.key];
+        const colorCls = col.colorKey ? getStatColorClass(col.colorKey, val) : '';
+        html += `<td class="${colorCls}">${col.fmt(val)}</td>`;
+      }
+      html += '</tr></tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    function renderSplitTable(containerId, data, cols, labelHeader) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      if (!data || data.length === 0) {
+        container.innerHTML = '<div style="padding:1rem;color:var(--text-muted);font-size:0.85rem">No data available</div>';
+        return;
+      }
+      let html = '<div class="table-wrapper"><table class="stat-table"><thead><tr>';
+      html += `<th class="col-name">${labelHeader}</th>`;
+      for (const col of cols) html += `<th>${col.label}</th>`;
+      html += '</tr></thead><tbody>';
+      for (const row of data) {
+        html += '<tr>';
+        html += `<td class="col-name">${row.abbr || row.name}</td>`;
+        for (const col of cols) html += `<td>${col.fmt(row[col.key])}</td>`;
+        html += '</tr>';
+      }
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    }
+
+    async function init() {
+      const pitcherId = getParam('id');
+      if (!pitcherId) {
+        document.getElementById('pitcher-content').innerHTML =
+          '<p>No pitcher specified. <a href="pitchers.html">Browse pitchers</a></p>';
+        return;
+      }
+
+      const [pitchers, splits] = await Promise.all([
+        loadJSON('pitchers.json'),
+        loadJSON('pitcher_splits.json'),
+      ]);
+
+      const pitcher = pitchers.find(p => String(p.id) === String(pitcherId));
+      if (!pitcher) {
+        document.getElementById('pitcher-content').innerHTML =
+          '<p>Pitcher not found. <a href="pitchers.html">Browse pitchers</a></p>';
+        return;
+      }
+
+      const pitcherSplits = splits[pitcherId] || { vsTeam: {}, vsHand: {} };
+      const ipDec = ipToDec(pitcher.IP);
+      const qualified = ipDec >= 20;
+
+      document.title = `${pitcher.name} - DataDugout`;
+
+      let html = '';
+
+      // ── Header ──
+      const handLabel = pitcher.pitch_hand === 'R' ? 'RHP' : pitcher.pitch_hand === 'L' ? 'LHP' : '';
+      html += `<div class="player-header">
+        <div class="player-name">${pitcher.name}</div>
+        <div class="player-team-info">
+          ${pitcher.team} &middot; ${handLabel}
+          <span class="badge ${qualified ? 'badge-qualified' : 'badge-partial'}" style="margin-left:0.5rem">
+            ${qualified ? 'Qualified' : 'Under 20 IP'}
+          </span>
+        </div>
+        <div class="player-headline-stats">
+          <div class="headline-stat">
+            <div class="headline-stat-value">${fmtIP(pitcher.IP)}</div>
+            <div class="headline-stat-label">IP</div>
+          </div>
+          <div class="headline-stat">
+            <div class="headline-stat-value">${pitcher.G || '-'}</div>
+            <div class="headline-stat-label">G</div>
+          </div>
+          <div class="headline-stat">
+            <div class="headline-stat-value">${pitcher.GS || 0}</div>
+            <div class="headline-stat-label">GS</div>
+          </div>
+          <div class="headline-stat">
+            <div class="headline-stat-value">${fmtDec2(pitcher.ERA)}</div>
+            <div class="headline-stat-label">ERA</div>
+          </div>
+          <div class="headline-stat">
+            <div class="headline-stat-value">${fmtDec2(pitcher.WHIP)}</div>
+            <div class="headline-stat-label">WHIP</div>
+          </div>
+          <div class="headline-stat">
+            <div class="headline-stat-value">${pitcher.K || '-'}</div>
+            <div class="headline-stat-label">K</div>
+          </div>
+          <div class="headline-stat">
+            <div class="headline-stat-value">${pitcher.BB || '-'}</div>
+            <div class="headline-stat-label">BB</div>
+          </div>
+          ${qualified ? `
+          <div class="headline-stat">
+            <div class="headline-stat-value">${fmtDec2(pitcher.FIP)}</div>
+            <div class="headline-stat-label">FIP</div>
+          </div>
+          <div class="headline-stat">
+            <div class="headline-stat-value">${fmtDec2(pitcher['K/9'])}</div>
+            <div class="headline-stat-label">K/9</div>
+          </div>` : ''}
+        </div>
+      </div>`;
+
+      // ── Season Stats Standard ──
+      const stdCols = [
+        { key: 'G',    label: 'G',    fmt: fmtInt },
+        { key: 'GS',   label: 'GS',   fmt: fmtInt },
+        { key: 'IP',   label: 'IP',   fmt: fmtIP  },
+        { key: 'BF',   label: 'BF',   fmt: fmtInt },
+        { key: 'H',    label: 'H',    fmt: fmtInt },
+        { key: 'HR',   label: 'HR',   fmt: fmtInt },
+        { key: 'BB',   label: 'BB',   fmt: fmtInt },
+        { key: 'HBP',  label: 'HBP',  fmt: fmtInt },
+        { key: 'K',    label: 'K',    fmt: fmtInt },
+        { key: 'R',    label: 'R',    fmt: fmtInt },
+        { key: 'ERA',  label: 'ERA',  fmt: fmtDec2, colorKey: 'ERA'  },
+        { key: 'WHIP', label: 'WHIP', fmt: fmtDec2, colorKey: 'WHIP' },
+        { key: 'BAA',  label: 'BAA',  fmt: fmtAvg  },
+      ];
+
+      html += `<div class="card">
+        <div class="card-header">Season Stats &mdash; Standard</div>
+        <div id="season-standard"></div>
+      </div>`;
+
+      if (qualified) {
+        const advCols = [
+          { key: 'IP',   label: 'IP',   fmt: fmtIP  },
+          { key: 'FIP',  label: 'FIP',  fmt: fmtDec2, colorKey: 'FIP'  },
+          { key: 'K/9',  label: 'K/9',  fmt: fmtDec2 },
+          { key: 'BB/9', label: 'BB/9', fmt: fmtDec2 },
+          { key: 'HR/9', label: 'HR/9', fmt: fmtDec2 },
+          { key: 'K/BB', label: 'K/BB', fmt: fmtDec2 },
+          { key: 'K%',   label: 'K%',   fmt: fmtPct  },
+          { key: 'BB%',  label: 'BB%',  fmt: fmtPct  },
+        ];
+        html += `<div class="card">
+          <div class="card-header">Season Stats &mdash; Advanced</div>
+          <div id="season-advanced"></div>
+        </div>`;
+      }
+
+      // ── Splits vs Batter Hand ──
+      html += `<div class="card">
+        <div class="card-header">Splits vs Batter Handedness</div>
+        <div id="splits-hand"></div>
+      </div>`;
+
+      // ── Splits vs Opponent Team ──
+      html += `<div class="card">
+        <div class="card-header">Splits vs Opponent Team</div>
+        <div class="splits-filters" style="padding:0.75rem 1rem 0">
+          <select id="opp-team-filter" class="filter-select" style="min-width:200px">
+            <option value="">All Opponents</option>
+          </select>
+        </div>
+        <div id="splits-team"></div>
+      </div>`;
+
+      html += `<div style="margin-top:1rem"><a href="pitchers.html" style="color:var(--primary);font-size:0.9rem">&larr; Back to all pitchers</a></div>`;
+
+      document.getElementById('pitcher-content').innerHTML = html;
+
+      // ── Render tables ──
+      renderSingleRowTable('season-standard', pitcher, stdCols);
+
+      if (qualified) {
+        const advCols = [
+          { key: 'IP',   label: 'IP',   fmt: fmtIP  },
+          { key: 'FIP',  label: 'FIP',  fmt: fmtDec2, colorKey: 'FIP'  },
+          { key: 'K/9',  label: 'K/9',  fmt: fmtDec2 },
+          { key: 'BB/9', label: 'BB/9', fmt: fmtDec2 },
+          { key: 'HR/9', label: 'HR/9', fmt: fmtDec2 },
+          { key: 'K/BB', label: 'K/BB', fmt: fmtDec2 },
+          { key: 'K%',   label: 'K%',   fmt: fmtPct  },
+          { key: 'BB%',  label: 'BB%',  fmt: fmtPct  },
+        ];
+        renderSingleRowTable('season-advanced', pitcher, advCols);
+      }
+
+      // ── Hand splits ──
+      const handData = Object.entries(pitcherSplits.vsHand).map(([hand, s]) => ({ name: hand, ...s }));
+      handData.sort((a, b) => (b.BF || 0) - (a.BF || 0));
+      renderSplitTable('splits-hand', handData, SPLIT_PITCH_COLS, 'Split');
+
+      // ── Team splits ──
+      const teamData = Object.entries(pitcherSplits.vsTeam).map(([team, s]) => ({ name: team, ...s }));
+      teamData.sort((a, b) => (b.BF || 0) - (a.BF || 0));
+
+      const oppFilter = document.getElementById('opp-team-filter');
+      for (const t of teamData) {
+        const opt = document.createElement('option');
+        opt.value = t.name;
+        opt.textContent = `${t.abbr || t.name} (${t.BF || 0} BF)`;
+        oppFilter.appendChild(opt);
+      }
+
+      function renderTeamSplits() {
+        const val = oppFilter.value;
+        const filtered = val ? teamData.filter(t => t.name === val) : teamData;
+        renderSplitTable('splits-team', filtered, SPLIT_PITCH_COLS, 'Opponent');
+      }
+
+      renderTeamSplits();
+      oppFilter.addEventListener('change', renderTeamSplits);
+    }
+
+    init();
+  </script>
+</body>
+</html>

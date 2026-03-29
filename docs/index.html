@@ -15,19 +15,21 @@
       <nav>
         <a href="index.html">Leaders</a>
         <a href="teams.html">Teams</a>
-        <a href="players.html">Players</a>
+        <a href="players.html">Batters</a>
+        <a href="pitchers.html">Pitchers</a>
       </nav>
     </div>
   </header>
 
   <main class="container">
     <h1 class="page-title">2025 LMB League Leaders</h1>
-    <p class="page-subtitle">Liga Mexicana de Beisbol &middot; Regular Season &middot; Min. 36 PA for rate stats</p>
+    <p class="page-subtitle">Liga Mexicana de Beisbol &middot; Regular Season &middot; Min. 36 PA for batting rate stats &middot; Min. 20 IP for pitching rate stats</p>
 
     <div class="tabs">
-      <button class="tab-btn active" data-tab="standard">Standard</button>
-      <button class="tab-btn" data-tab="advanced">Advanced</button>
-      <button class="tab-btn" data-tab="counting">Counting</button>
+      <button class="tab-btn active" data-tab="standard">Batting &mdash; Standard</button>
+      <button class="tab-btn" data-tab="advanced">Batting &mdash; Advanced</button>
+      <button class="tab-btn" data-tab="counting">Batting &mdash; Counting</button>
+      <button class="tab-btn" data-tab="pitching">Pitching</button>
     </div>
 
     <div id="tab-standard" class="tab-content">
@@ -39,6 +41,9 @@
     <div id="tab-counting" class="tab-content" style="display:none">
       <div class="leaders-grid" id="leaders-counting"></div>
     </div>
+    <div id="tab-pitching" class="tab-content" style="display:none">
+      <div class="leaders-grid" id="leaders-pitching"></div>
+    </div>
   </main>
 
   <footer class="site-footer">
@@ -49,10 +54,11 @@
   <script src="js/shared.js"></script>
   <script>
     const STANDARD_CATS = ['BA', 'OBP', 'SLG', 'OPS', 'HR', 'RBI'];
-    const ADVANCED_CATS = ['wOBA', 'ISO', 'BABIP', 'BB%', 'K%', 'RAA'];
+    const ADVANCED_CATS = ['wRC+', 'wOBA', 'ISO', 'BABIP', 'BB%', 'K%'];
     const COUNTING_CATS = ['H', '2B', '3B', 'HR', 'BB', 'RBI'];
+    const PITCHING_CATS = ['ERA', 'WHIP', 'FIP', 'K', 'K/9', 'BB/9', 'BAA', 'K/BB'];
 
-    function renderLeaderCard(cat, data) {
+    function renderLeaderCard(cat, data, linkBase = 'player.html', valueKey = 'value') {
       const d = data[cat];
       if (!d) return '';
       let html = `<div class="leader-card">
@@ -61,10 +67,10 @@
       for (let i = 0; i < d.players.length; i++) {
         const p = d.players[i];
         const rankClass = i < 3 ? ` rank-${i + 1}` : '';
-        const val = fmtStat(p.value, d.format);
+        const val = fmtStat(p[valueKey], d.format);
         html += `<li>
           <span class="leader-rank${rankClass}">${i + 1}</span>
-          <span class="leader-name"><a href="player.html?id=${p.id}">${p.name}</a></span>
+          <span class="leader-name"><a href="${linkBase}?id=${p.id}">${p.name}</a></span>
           <span class="leader-team">${p.teamAbbr}</span>
           <span class="leader-value">${val}</span>
         </li>`;
@@ -74,16 +80,20 @@
     }
 
     async function init() {
-      const leaders = await loadJSON('leaders.json');
+      const [batting, pitching] = await Promise.all([
+        loadJSON('leaders.json'),
+        loadJSON('pitching_leaders.json'),
+      ]);
 
       document.getElementById('leaders-standard').innerHTML =
-        STANDARD_CATS.map(c => renderLeaderCard(c, leaders)).join('');
+        STANDARD_CATS.map(c => renderLeaderCard(c, batting)).join('');
       document.getElementById('leaders-advanced').innerHTML =
-        ADVANCED_CATS.map(c => renderLeaderCard(c, leaders)).join('');
+        ADVANCED_CATS.map(c => renderLeaderCard(c, batting)).join('');
       document.getElementById('leaders-counting').innerHTML =
-        COUNTING_CATS.map(c => renderLeaderCard(c, leaders)).join('');
+        COUNTING_CATS.map(c => renderLeaderCard(c, batting)).join('');
+      document.getElementById('leaders-pitching').innerHTML =
+        PITCHING_CATS.map(c => renderLeaderCard(c, pitching, 'pitcher.html')).join('');
 
-      // Tab switching
       document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
